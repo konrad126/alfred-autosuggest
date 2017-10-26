@@ -14,11 +14,11 @@ class Autosuggest
      */
     private $client;
     /**
-     * @var UrlGenerator
+     * @var QueryUrlGenerator
      */
     private $urlGenerator;
     /**
-     * @var ResponseFormatter
+     * @var ScriptFilterItemFormater
      */
     private $responseFormatter;
     /**
@@ -28,11 +28,11 @@ class Autosuggest
 
     /**
      * Autosuggest constructor.
-     * @param UrlGenerator $urlGenerator
-     * @param ResponseFormatter $responseFormatter
+     * @param QueryUrlGenerator $urlGenerator
+     * @param ScriptFilterItemFormater $responseFormatter
      * @param ResponseNormalizer $responseNormalizer
      */
-    public function __construct(UrlGenerator $urlGenerator, ResponseFormatter $responseFormatter, ResponseNormalizer $responseNormalizer)
+    public function __construct(QueryUrlGenerator $urlGenerator, ScriptFilterItemFormater $responseFormatter, ResponseNormalizer $responseNormalizer)
     {
         $this->client = new Client();
         $this->urlGenerator = $urlGenerator;
@@ -42,17 +42,22 @@ class Autosuggest
 
     /**
      * @param string $searchQuery
-     * @return string
+     * @return ScriptFilterResponse
      */
-    public function retrieveSuggestions(string $searchQuery): string
+    public function retrieveSuggestions(string $searchQuery): ScriptFilterResponse
     {
         $response = $this->client->request('GET', $this->generateSearchUrl($searchQuery));
         $normalizedResponse = $this->responseNormalizer->normalizeResponse($response->getBody());
+        $scriptFilterResponse = new ScriptFilterResponse();
         foreach ($normalizedResponse as $item) {
-            $result = $this->responseFormatter->format($item);
+            try {
+                $scriptFilterResponse->addItem($this->responseFormatter->format($item));
+            } catch (\Exception $e) {
+                // skip unhandled exceptions - to prevent app from crashing
+            }
         }
 
-        return json_encode(['items' => $result]);
+        return $scriptFilterResponse;
     }
 
     /**

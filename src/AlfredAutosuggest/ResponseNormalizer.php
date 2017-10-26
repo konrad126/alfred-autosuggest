@@ -1,10 +1,8 @@
 <?php
 
-
 namespace AlfredAutosuggest;
-
 
 interface ResponseNormalizer
 {
-    public function normalizeResponse() : array;
+    public function normalizeResponse(string $response) : array;
 }

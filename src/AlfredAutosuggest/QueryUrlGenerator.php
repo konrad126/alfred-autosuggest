@@ -2,7 +2,7 @@
 
 namespace AlfredAutosuggest;
 
-interface UrlGenerator
+interface QueryUrlGenerator
 {
     /**
      * @param string $searchQuery

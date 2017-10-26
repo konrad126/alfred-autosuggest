@@ -2,7 +2,7 @@
 
 namespace AlfredAutosuggest;
 
-class ScriptFilterResponseItem
+class ScriptFilterItem
 {
 
     public $uuid;
@@ -11,5 +11,7 @@ class ScriptFilterResponseItem
     public $subtitle;
     public $arg;
     public $autocomplete;
+    public $quicklookurl;
+
 
 }
