@@ -2,6 +2,7 @@
 
 namespace AlfredAutosuggest;
 
+use AlfredAutosuggest\NoResponseException;
 use GuzzleHttp\Client;
 
 /**
@@ -13,18 +14,27 @@ class Autosuggest
      * @var Client
      */
     private $client;
+
     /**
      * @var QueryUrlGenerator
      */
     private $urlGenerator;
+
     /**
      * @var ScriptFilterItemFormater
      */
     private $responseFormatter;
+
     /**
      * @var ResponseNormalizer
      */
     private $responseNormalizer;
+
+
+    /**
+     * @var ScriptFilterResponse $result
+     */
+    private $result;
 
     /**
      * Autosuggest constructor.
@@ -35,6 +45,7 @@ class Autosuggest
     public function __construct(QueryUrlGenerator $urlGenerator, ScriptFilterItemFormater $responseFormatter, ResponseNormalizer $responseNormalizer)
     {
         $this->client = new Client();
+        $this->result = new ScriptFilterResponse();
         $this->urlGenerator = $urlGenerator;
         $this->responseFormatter = $responseFormatter;
         $this->responseNormalizer = $responseNormalizer;
@@ -47,17 +58,16 @@ class Autosuggest
     public function retrieveSuggestions(string $searchQuery): ScriptFilterResponse
     {
         $response = $this->client->request('GET', $this->generateSearchUrl($searchQuery));
-        $normalizedResponse = $this->responseNormalizer->normalizeResponse($response->getBody());
-        $scriptFilterResponse = new ScriptFilterResponse();
-        foreach ($normalizedResponse as $item) {
-            try {
-                $scriptFilterResponse->addItem($this->responseFormatter->format($item));
-            } catch (\Exception $e) {
-                // skip unhandled exceptions - to prevent app from crashing
-            }
-        }
 
-        return $scriptFilterResponse;
+        try {
+            $normalizedResponse = $this->normalizeResponse($response);
+            foreach ($normalizedResponse as $item) {
+                $this->addToResults($item);
+            }
+        } catch (NoResponseException $e) {
+            // if there are no results skip
+        }
+        return $this->result;
     }
 
     /**
@@ -67,6 +77,28 @@ class Autosuggest
     protected function generateSearchUrl(string $searchQuery): string
     {
         return $this->urlGenerator->generateUrl($searchQuery);
+    }
+
+    /**
+     * @param $item
+     */
+    protected function addToResults($item)
+    {
+        try {
+            $this->result->addItem($this->responseFormatter->format($item));
+        } catch (\Throwable $exception) {
+            // skip all unhandled errors - better than crashing the app
+        }
+    }
+
+    /**
+     * @param $response
+     * @return array
+     * @throws NoResponseException
+     */
+    protected function normalizeResponse($response): array
+    {
+        return $this->responseNormalizer->normalizeResponse($response->getBody());
     }
 
 
