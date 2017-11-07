@@ -2,13 +2,15 @@
 
 namespace AlfredAutosuggest;
 
-use AlfredAutosuggest\NoResponseException;
 use GuzzleHttp\Client;
 
 /**
  * Class Autosuggest
+ *
+ * Template method pattern.
+ *
  */
-class Autosuggest
+abstract class Autosuggest
 {
     /**
      * @var Client
@@ -16,67 +18,37 @@ class Autosuggest
     private $client;
 
     /**
-     * @var QueryUrlGenerator
-     */
-    private $urlGenerator;
-
-    /**
-     * @var ScriptFilterItemFormater
-     */
-    private $responseFormatter;
-
-    /**
-     * @var ResponseNormalizer
-     */
-    private $responseNormalizer;
-
-
-    /**
      * @var ScriptFilterResponse $result
      */
     private $result;
 
+
     /**
      * Autosuggest constructor.
-     * @param QueryUrlGenerator $urlGenerator
-     * @param ScriptFilterItemFormater $responseFormatter
-     * @param ResponseNormalizer $responseNormalizer
      */
-    public function __construct(QueryUrlGenerator $urlGenerator, ScriptFilterItemFormater $responseFormatter, ResponseNormalizer $responseNormalizer)
+    public function __construct()
     {
         $this->client = new Client();
         $this->result = new ScriptFilterResponse();
-        $this->urlGenerator = $urlGenerator;
-        $this->responseFormatter = $responseFormatter;
-        $this->responseNormalizer = $responseNormalizer;
-    }
-
-    /**
-     * @param string $searchQuery
-     * @return ScriptFilterResponse
-     */
-    public function retrieveSuggestions(string $searchQuery): ScriptFilterResponse
-    {
-        $response = $this->client->request('GET', $this->generateSearchUrl($searchQuery));
-
-        try {
-            $normalizedResponse = $this->normalizeResponse($response);
-            foreach ($normalizedResponse as $item) {
-                $this->addToResults($item);
-            }
-        } catch (NoResponseException $e) {
-            // if there are no results skip
-        }
-        return $this->result;
     }
 
     /**
      * @param string $searchQuery
      * @return string
      */
-    protected function generateSearchUrl(string $searchQuery): string
+    public function retrieveSuggestions(string $searchQuery): string
     {
-        return $this->urlGenerator->generateUrl($searchQuery);
+        $response = $this->client->request('GET', $this->generateSearchUrl($searchQuery));
+
+        try {
+            $normalizedResponse = $this->normalizeResponse($response->getBody());
+            foreach ($normalizedResponse as $item) {
+                $this->addToResults($item);
+            }
+        } catch (NoResponseException $e) {
+            // if there are no results skip
+        }
+        return $this->result->toJson();
     }
 
     /**
@@ -85,21 +57,36 @@ class Autosuggest
     protected function addToResults($item)
     {
         try {
-            $this->result->addItem($this->responseFormatter->format($item));
+            $this->result->addItem($this->createResponseItem($item));
         } catch (\Throwable $exception) {
             // skip all unhandled errors - better than crashing the app
         }
     }
 
     /**
+     * Generate search url
+     *
+     * @param string $searchQuery
+     * @return string
+     */
+    abstract protected function generateSearchUrl(string $searchQuery): string;
+
+    /**
+     * Normalize response returned from server (if
+     * needed)
+     *
      * @param $response
      * @return array
      * @throws NoResponseException
      */
-    protected function normalizeResponse($response): array
-    {
-        return $this->responseNormalizer->normalizeResponse($response->getBody());
-    }
+    abstract protected function normalizeResponse($response): array;
 
+    /**
+     * Creates Alfred Script Filter Response Item
+     *
+     * @param $item
+     * @return ScriptFilterItem
+     */
+    abstract protected function createResponseItem($item): ScriptFilterItem;
 
 }

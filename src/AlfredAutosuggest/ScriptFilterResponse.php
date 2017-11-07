@@ -1,25 +1,30 @@
 <?php
 
-
 namespace AlfredAutosuggest;
 
+/**
+ * Class ScriptFilterResponse
+ * @package AlfredAutosuggest
+ */
 class ScriptFilterResponse
 {
 
+    /**
+     * @var array
+     */
     protected $items = [];
 
-    protected $variables = [];
-
+    /**
+     * @param ScriptFilterItem $item
+     */
     public function addItem(ScriptFilterItem $item)
     {
         $this->items[] = $item;
     }
 
-    public function addVariable(string $name, $value)
-    {
-        $this->variables[$name] = $value;
-    }
-
+    /**
+     * @return string
+     */
     public function toJson(): string
     {
         return json_encode([
